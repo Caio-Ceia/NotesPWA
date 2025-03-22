@@ -1,0 +1,22 @@
+{
+  "name": "Bloco de Notas",
+  "short_name": "Notas",
+  "theme_color": "#db4938",
+  "background_color": "#fdfdfd",
+  "display": "standalone",
+  "orientation": "portrait",
+  "scope": "/NotesPWA/",
+  "start_url": "/NotesPWA/",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-small.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}

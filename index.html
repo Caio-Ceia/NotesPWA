@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Notas</title>
+  <link rel="manifest" href="manifest.json"/>
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="shortcut icon" href="icon.png" type="image/x-icon">
+  <meta name="apple-mobile-web-app-status-bar" content="#db4938" />
+  <meta name="theme-color" content="#db4938" />
+  <style>
+    body{margin:0px; padding:0px;}
+    body.darkMode{
+      background-color: #2c2c2c;
+      color:#ffffffcb;
+    }
+    textarea.darkMode{
+      background-color:black;
+      color:#ffffffcb;
+    }
+
+    #container{
+      display:flex;  flex-direction: row; gap:10px; justify-content: center;
+      margin-left:120px;
+      height:100vh;
+    }
+    #homeView{
+      display:flex;  flex-direction: column; gap:20px; align-content: center;
+      text-align: center;
+    }
+    [hidden] {
+      display: none !important;
+    }
+    .tabView > textarea{height:95vh; width:780px;}
+    .sidebar{
+      display:flex; flex-direction:column; align-items: center;
+      position:fixed;
+      padding: 10px 0px;
+      height: calc(100vh - 20px); /*20px because of the padding of the top and bottom summed*/
+      width: 170px;
+      background:black;
+      border-right:rgb(109, 109, 109) 1px solid;
+    }
+  .actionButton {
+      box-sizing: border-box ;
+      width: 150px;
+      padding:5px 5px;
+      margin-top:auto 10px auto 0px;
+      background-color: rgb(54, 54, 54);
+      color: white;
+    }
+    .sidebar button:first-child{
+      margin-top:0px;
+      width:170px;
+      padding:5px 0px 5px 15px;
+      text-align: left;
+      background-color: transparent;
+      color:rgb(199, 199, 199);
+      border:none;
+    }
+    #tabButtonsDiv{margin-bottom:10px;}
+    #tabButtonsDiv button{
+      margin-top:0px;
+      width:170px;
+      padding:5px 0px 5px 15px;
+      text-align: left;
+      background-color: transparent;
+      color:rgb(199, 199, 199);
+      border:none;
+    }
+    #tabButtonsDiv button:hover, .sidebar button:first-child:hover{
+      background-color: rgb(34, 34, 34);
+      cursor:pointer;
+      color:white;
+    }
+    #tabButtonsDiv button.selected, .sidebar button:first-child.selected{
+      background-color: rgb(80, 80, 80);
+      cursor:default;
+      color:white;
+
+    }
+    div#dropArea{
+      display:flex; flex-direction:row; align-items: center; justify-content:center; margin-top:auto;
+      box-sizing: border-box;
+      height: 100px;
+      width:140px;
+      border: 1px dashed white;
+      color:gray;
+      text-align:center;
+      user-select: none;
+      -moz-user-select: none;
+      -webkit-user-select: none;
+    }
+    .drag-over{
+      background-color: rgb(59, 59, 59);
+    }
+  </style>
+</head>
+<body class="darkMode" onload="Storage.loadFromLocalStorage()" onbeforeunload="Storage.saveToLocalStorage()">
+  <nav class="sidebar">
+    <button id="homeButton" onclick="View.switchTo('homeView')">Home</button>
+    <div id="tabButtonsDiv"></div>
+    <button class="actionButton" onclick="View.newTab()">New Tab</button>
+    <div id="dropArea">Drop txt file here</div>
+  </nav>
+  <div id="container">
+    <div id="homeView">Home Screen</br><button class="actionButton" onclick="localStorage.tabs = '{}'">Clear Saved Data</button></div>
+  </div>
+
+  <div hidden class="tabView" id="tabTemplate">
+    <button onclick="(() => {navigator.clipboard.writeText(this.parentElement.lastElementChild.value);this.parentElement.lastElementChild.focus()})()">Copy Text</button>
+    <button onclick="this.parentElement.querySelector('input[type=file]').click()">Upload Text</button>
+    <button onclick="saveFile()">Save File</button>
+    <button onclick="View.deleteTab(this.parentElement)">Close Tab</button>
+    <input id="fileinput" hidden multiple type="file" onchange="loadText(this, this.parentElement.querySelector('textarea'))">
+    <br>
+    <textarea class="darkMode"></textarea>
+  </div>
+  <!--====================================================================================================================-->
+<script src="app.js"></script>
+<script>
+const dropArea = document.querySelector("#dropArea");
+const viewContainer = document.querySelector("#container");
+const tabButtonsDiv = document.querySelector("#tabButtonsDiv");
+const template = document.querySelector("#tabTemplate");
+const homeButton = document.querySelector("#homeButton");
+
+class View {
+  static currentId = "homeView";
+
+  constructor(){}
+  static getCurrentTabNode(){return document.querySelector("#"+this.currentId);}
+  static switchTo(id){
+    console.log(`View.switchTo(${id})`);
+    this.currentId=id;
+    for(const x in Storage.tabs){
+        let key = x.split()[0];
+        document.querySelector("#"+key).hidden = true;
+        document.querySelector("#B"+key.substring(3)).classList.remove('selected');
+    }
+    document.querySelector("#homeView").hidden = true;
+    View.getCurrentTabNode().hidden = false;
+    if(id == "homeView"){
+      homeButton.classList.add('selected');
+      document.querySelector("#homeView").hidden = false;
+    }
+    else {
+      homeButton.classList.remove('selected');
+      tabButtonsDiv.querySelector("#B"+View.currentId.substring(3)).classList.add('selected');
+    }
+    Storage.lastOpenedTabId=id;
+  }
+  static newTab(fileName){
+    console.log("View.newTab()");
+    const cloned = template.cloneNode(true);
+    cloned.hidden = false;
+    cloned.id = "Tab"+(View.getNextId());
+    viewContainer.appendChild(cloned);
+    let tabName = fileName?fileName:`Tab ${View.getNextId()}`;
+    tabButtonsDiv.innerHTML+= `<button id='B${View.getNextId()}' onclick='View.switchTo("Tab${View.getNextId()}")'>${tabName}</button>`;
+    View.switchTo(cloned.id);
+    Storage.tabs["Tab"+View.getNextId()]=[tabName,""];
+    this.NofTabs++;
+  }
+  static deleteTab(){
+    if(confirm(`are you sure you want to delete ${Storage.tabs[View.currentId][0]}? All text may be lost.`)){
+      delete Storage.tabs[View.currentId];
+      tabButtonsDiv.querySelector("#B"+View.currentId.substring(3)).remove();
+      View.getCurrentTabNode().remove();
+      if(tabButtonsDiv.firstElementChild){tabButtonsDiv.firstElementChild.click();}
+      else{View.switchTo("homeView")}
+    }
+  }
+  static getNextId(){
+    if(Object.keys(Storage.tabs).length == 0){
+      return 1;
+    } 
+    else {
+      let keys = Object.keys(Storage.tabs);
+      let keysOutOfOrder = [];
+      for (let x = 0; x < keys.length; x++) {
+        let e = keys[x];
+        keysOutOfOrder.push(e.substring(3));
+      }
+      let keysInOrder=keysOutOfOrder.sort((a,b)=>{return a - b});
+      for (let x = 1; x <= keysInOrder.length; x++) {
+        if (x == 1 && keysInOrder[x-1] != 1){return 1;}
+        else if(keysInOrder[x-1] > x){return x}
+        else if(x == keysInOrder.length){; return Number(x)+1}
+      }
+    }
+  }
+}
+
+class Storage{
+  static tabs = {};
+  static lastOpenedTabId = "";
+  constructor(){};
+  static loadFromLocalStorage(){
+    console.log("Storage.loadFromLocalStorage()");
+    console.log(JSON.parse(localStorage.tabs));
+    const returnedObj = JSON.parse(localStorage.tabs);
+    const lastOpened = localStorage.lastOpened; /*obj key*/
+    if (Object.keys(returnedObj).length != 0){
+      Object.assign(Storage.tabs,returnedObj);
+      for (const x of Object.entries(Storage.tabs)) {
+        let key = x[0];
+        let value = x[1];
+        const cloned = template.cloneNode(true);
+        cloned.hidden = true;
+        cloned.id = key;
+        cloned.querySelector("textarea").value = value[1];
+        viewContainer.appendChild(cloned);
+        tabButtonsDiv.innerHTML+= `<button id='B${key.substring(3)}' onclick='View.switchTo("${key}")'>${value[0]}</button>`;
+      }
+      View.switchTo(lastOpened);
+    }
+    else{
+      alert("There are no saved tabs in memory.");
+      localStorage.lastOpened=Storage.lastOpenedTabId;
+      localStorage.tabs=JSON.stringify({});
+      console.log(JSON.parse(localStorage.tabs));
+      View.switchTo("homeView");
+    }
+  }
+  static saveToLocalStorage(){
+    if(Object.keys(Storage.tabs).length != 0){
+      console.log("Storage.saveToLocalStorage()");
+      localStorage.lastOpened=Storage.lastOpenedTabId;
+      for (const x in Storage.tabs) {
+        let tabsObjName = x;
+        Storage.tabs[x][1] = document.querySelector("#"+tabsObjName+" textarea").value;
+      }
+      localStorage.tabs=JSON.stringify(Storage.tabs);
+    }
+  }
+}
+
+// drop file stuff ---------------------------------------------------------------------------------------------------------
+function preventDefaults(e) {
+  e.preventDefault(); e.stopPropagation();
+}
+function handleDrop(e){
+  dropArea.classList.remove('drag-over');
+  e.preventDefault();
+  const files = e.dataTransfer.files;
+
+  if (files.length) {
+    if(View.currentId != "homeView"){
+      let currentTab = View.getCurrentTabNode();
+      currentTab.querySelector("input").files = files;
+      loadText(currentTab.querySelector("input"), currentTab.querySelector("textarea"));
+    } else{
+      View.newTab(files[0].name);
+      let currentTab = View.getCurrentTabNode();
+      currentTab.querySelector("input").files = files;
+      loadText(currentTab.querySelector("input"), currentTab.querySelector("textarea"));
+    }
+  }
+}
+
+function isValidFileType(file) {
+  const allowedTypes = ['text/plain'];
+  return allowedTypes.includes(file.type);
+}
+//---------------------------------------------------------------------------------------------------------
+// upload file button stuff ---------------------------------------------------------------------------------------------------------
+
+function loadText(input, textarea){
+  const files = input.files;
+  for (const file of files) {
+      const reader = new FileReader();
+      let filename = file.name;
+      reader.readAsText(file);
+      reader.onloadend = function (e) {
+        if(isValidFileType(file)){
+          if(textarea.value == ""){
+            textarea.value = e.target.result;
+            document.querySelector("#B"+View.currentId.substring(3)).innerText = filename;
+            Storage.tabs[View.currentId][0] = filename;
+          }
+          else {
+            View.newTab(filename);
+            View.getCurrentTabNode().querySelector("textarea").value = e.target.result;
+          }
+        }
+        else{alert("Invalid file type")}
+      }
+    }
+}
+//---------------------------------------------------------------------------------------------------------
+// save file button stuff ---------------------------------------------------------------------------------------------------------
+function saveFile() {
+    const tab = View.getCurrentTabNode();
+    const data = tab.querySelector("textarea").value;
+    const blob = new Blob([data], {type: 'text/plain'});
+    const filename = Storage.tabs[View.currentId][0];
+    if(window.navigator.msSaveOrOpenBlob) {
+        window.navigator.msSaveBlob(blob, filename);
+    }
+    else{
+        const elem = window.document.createElement('a');
+        elem.href = window.URL.createObjectURL(blob);
+        elem.download = filename;        
+        document.body.appendChild(elem);
+        elem.click();        
+        document.body.removeChild(elem);
+        window.URL.revokeObjectURL(blob);
+    }
+}
+//---------------------------------------------------------------------------------------------------------
+
+  dropArea.addEventListener('dragover', preventDefaults);
+  dropArea.addEventListener('dragenter', preventDefaults);
+  dropArea.addEventListener('dragleave', preventDefaults);
+  dropArea.addEventListener('drop', handleDrop);
+  dropArea.addEventListener('dragover', () => {dropArea.classList.add('drag-over');});
+  dropArea.addEventListener('dragleave', () => {dropArea.classList.remove('drag-over');});
+
+</script>
+</body>
+</html>
