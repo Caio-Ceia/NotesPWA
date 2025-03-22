@@ -1,7 +1,7 @@
 {
   "name": "Bloco de Notas",
   "short_name": "Notas",
-  "theme_color": "#db4938",
+  "theme_color": "#131313",
   "background_color": "#fdfdfd",
   "display": "standalone",
   "orientation": "portrait",
